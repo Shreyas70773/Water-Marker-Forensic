@@ -51,9 +51,10 @@ async function extractSampleFrames(
   
   // Get video duration first
   const duration = await new Promise<number>((resolve, reject) => {
-    ffmpeg.ffprobe(videoPath, (err: Error | null, metadata: { format: { duration?: number } }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ffmpeg.ffprobe(videoPath, (err: any, metadata: any) => {
       if (err) return reject(err);
-      resolve(metadata.format.duration || 10);
+      resolve(metadata.format?.duration || 10);
     });
   });
 

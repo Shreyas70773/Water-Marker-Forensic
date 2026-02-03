@@ -57,10 +57,11 @@ async function getVideoMetadata(videoPath: string): Promise<VideoMetadata> {
   const ffmpeg = await getFFmpeg();
   
   return new Promise((resolve, reject) => {
-    ffmpeg.ffprobe(videoPath, (err: Error | null, metadata: { streams: Array<{ codec_type: string; width?: number; height?: number; duration?: number; r_frame_rate?: string; codec_name?: string }>; format: { duration?: number } }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ffmpeg.ffprobe(videoPath, (err: any, metadata: any) => {
       if (err) return reject(err);
       
-      const videoStream = metadata.streams.find(s => s.codec_type === "video");
+      const videoStream = metadata.streams.find((s: any) => s.codec_type === "video");
       if (!videoStream) return reject(new Error("No video stream found"));
       
       // Parse frame rate (e.g., "30/1" or "30000/1001")
