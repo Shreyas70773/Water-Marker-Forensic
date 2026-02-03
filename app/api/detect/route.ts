@@ -124,10 +124,11 @@ export async function POST(req: NextRequest) {
     };
 
     // No match found or low similarity
-    if (!bestMatch || bestMatch.similarity < SIMILARITY_THRESHOLD) {
+    const matchSimilarity = bestMatch?.similarity ?? 0;
+    if (!bestMatch || matchSimilarity < SIMILARITY_THRESHOLD) {
       await convex.mutation(api.detectionLogs.create, {
         detected: false,
-        confidence: bestMatch?.similarity ?? 0,
+        confidence: matchSimilarity,
         confidenceLevel: "NONE",
         analyzedFileName: file.name,
         analyzedFileSize: file.size,
@@ -140,7 +141,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         found: false,
         message: "No matching watermarked image found",
-        confidence: bestMatch?.similarity ?? 0,
+        confidence: matchSimilarity,
         threshold: SIMILARITY_THRESHOLD,
       });
     }
