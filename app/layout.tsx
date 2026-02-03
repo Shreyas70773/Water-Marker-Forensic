@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexClientProvider } from "@/components/providers/convex-provider";
 import { Toaster } from "@/components/ui/toaster";
+import { Footer } from "@/components/layout/footer";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -21,9 +22,12 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={inter.className}>
+        <body className={`${inter.className} min-h-screen flex flex-col`}>
           <ConvexClientProvider>
-            {children}
+            <div className="flex-1">
+              {children}
+            </div>
+            <Footer />
             <Toaster />
           </ConvexClientProvider>
         </body>
