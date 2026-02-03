@@ -15,10 +15,10 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Configure CORS for your frontend
-const allowedOrigins = [
+const allowedOrigins: string[] = [
   'http://localhost:3000',
   process.env.FRONTEND_URL,
-].filter(Boolean);
+].filter((origin): origin is string => Boolean(origin));
 
 app.use(cors({
   origin: allowedOrigins,

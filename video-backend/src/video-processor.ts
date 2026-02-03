@@ -6,9 +6,12 @@ import path from 'path';
 import fs from 'fs/promises';
 import crypto from 'crypto';
 
-// Set FFmpeg paths
+// Set FFmpeg paths from npm installers
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 ffmpeg.setFfprobePath(ffprobeInstaller.path);
+
+console.log('[FFMPEG] Path:', ffmpegInstaller.path);
+console.log('[FFPROBE] Path:', ffprobeInstaller.path);
 
 interface VideoMetadata {
   width: number;
