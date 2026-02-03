@@ -83,10 +83,11 @@ export async function GET(req: NextRequest) {
     const generator = new ForensicReportGenerator();
     const pdfBuffer = await generator.generateReport(reportData);
 
-    // Return PDF
+    // Return PDF - convert Buffer to Uint8Array for NextResponse compatibility
     const filename = `forensic-report-${artwork.workId}.pdf`;
+    const uint8Array = new Uint8Array(pdfBuffer);
 
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(uint8Array, {
       status: 200,
       headers: {
         "Content-Type": "application/pdf",
