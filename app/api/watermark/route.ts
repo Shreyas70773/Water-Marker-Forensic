@@ -22,10 +22,23 @@ import {
 import { computeCombinedHash } from "@/lib/watermark/perceptual-hash";
 import { Id } from "@/convex/_generated/dataModel";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Initialize Convex client with error handling
+const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+if (!convexUrl) {
+  console.error("[WATERMARK] NEXT_PUBLIC_CONVEX_URL is not set!");
+}
+const convex = convexUrl ? new ConvexHttpClient(convexUrl) : null;
 
 export async function POST(req: NextRequest) {
   try {
+    // Check if Convex is configured
+    if (!convex) {
+      return NextResponse.json(
+        { error: "Server configuration error: Database not configured" },
+        { status: 500 }
+      );
+    }
+
     const authResult = await auth();
     const clerkId = authResult?.userId;
 

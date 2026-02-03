@@ -15,7 +15,12 @@ import {
   CombinedHash 
 } from "@/lib/watermark/perceptual-hash";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
+// Initialize Convex client with error handling
+const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
+if (!convexUrl) {
+  console.error("[DETECT] NEXT_PUBLIC_CONVEX_URL is not set!");
+}
+const convex = convexUrl ? new ConvexHttpClient(convexUrl) : null;
 
 // Similarity threshold for detection (0.85 = 85% similar)
 const SIMILARITY_THRESHOLD = 0.85;
@@ -24,6 +29,14 @@ export async function POST(req: NextRequest) {
   const requestId = uuidv4();
 
   try {
+    // Check if Convex is configured
+    if (!convex) {
+      return NextResponse.json(
+        { error: "Server configuration error: Database not configured" },
+        { status: 500 }
+      );
+    }
+
     // Get form data
     const formData = await req.formData();
     const file = formData.get("file") as File;
