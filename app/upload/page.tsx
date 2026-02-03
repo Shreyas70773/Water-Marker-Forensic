@@ -110,6 +110,10 @@ export default function UploadPage() {
     "video/quicktime": [".mov"],
   };
 
+  // Check if video backend is available
+  const videoBackendUrl = process.env.NEXT_PUBLIC_VIDEO_BACKEND_URL;
+  const isVideoEnabled = Boolean(videoBackendUrl);
+
   const acceptedFileTypes = mediaType === "IMAGE" ? imageTypes : videoTypes;
 
   const maxFileSize = mediaType === "IMAGE" 
@@ -125,6 +129,16 @@ export default function UploadPage() {
 
   const handleUpload = async () => {
     if (!selectedFile || !user) return;
+
+    // Check if trying to upload video without backend
+    if (mediaType === "VIDEO" && !isVideoEnabled) {
+      setStatus("error");
+      setResult({
+        success: false,
+        error: "Video processing is currently unavailable. Please use images for now.",
+      });
+      return;
+    }
 
     setStatus("uploading");
     setProgress(10);
@@ -253,9 +267,9 @@ export default function UploadPage() {
                   <ImageIcon className="h-4 w-4" />
                   Image
                 </TabsTrigger>
-                <TabsTrigger value="VIDEO" className="flex items-center gap-2">
+                <TabsTrigger value="VIDEO" className="flex items-center gap-2" disabled={!isVideoEnabled}>
                   <VideoIcon className="h-4 w-4" />
-                  Video
+                  Video {!isVideoEnabled && <span className="text-xs opacity-60">(Coming Soon)</span>}
                 </TabsTrigger>
               </TabsList>
               
@@ -266,9 +280,15 @@ export default function UploadPage() {
               </TabsContent>
               
               <TabsContent value="VIDEO" className="mt-4">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Supported formats: MP4, WebM, MOV (max 500MB)
-                </p>
+                {isVideoEnabled ? (
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Supported formats: MP4, WebM, MOV (max 500MB)
+                  </p>
+                ) : (
+                  <p className="text-sm text-yellow-600 mb-4">
+                    Video processing is coming soon. Please use images for now.
+                  </p>
+                )}
               </TabsContent>
             </Tabs>
 
