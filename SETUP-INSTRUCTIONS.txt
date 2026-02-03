@@ -1,0 +1,148 @@
+================================================================================
+WATERMARKER SETUP INSTRUCTIONS
+================================================================================
+
+Your wallet address: 0x38B5eeB9F09547c820260d596180A68c0A256d1B
+
+ABOUT FAUCET TOKENS:
+- Tokens go to your WALLET ADDRESS, not email
+- Check balance: https://amoy.polygonscan.com/address/0x38B5eeB9F09547c820260d596180A68c0A256d1B
+- NOTE: Mumbai testnet is DEPRECATED. Use Polygon Amoy testnet.
+- Amoy Faucet: https://faucet.polygon.technology/ (select "Amoy" network)
+- Alternative faucet: https://www.alchemy.com/faucets/polygon-amoy
+
+================================================================================
+STEP 1: UPDATE YOUR .env.local FILE
+================================================================================
+
+Open .env.local and make sure it looks like this:
+
+------- START OF .env.local -------
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_b3JpZW50ZWQtb3dsLTYwLmNsZXJrLmFjY291bnRzLmRldiQ
+CLERK_SECRET_KEY=sk_test_yF3KQBwFFwwkQq9gCQEjurLOs2kc3sPGFCk52ywALx
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/auth/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/auth/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
+
+# Convex (you'll get this in Step 3)
+NEXT_PUBLIC_CONVEX_URL=
+
+# Blockchain (Polygon Amoy Testnet)
+# NOTE: Blockchain is OPTIONAL - app works without it for testing
+POLYGON_RPC_URL=https://rpc-amoy.polygon.technology
+
+# Your wallet private key - Export from MetaMask (see instructions below)
+# WITHOUT the 0x prefix!
+NOTARY_PRIVATE_KEY=YOUR_PRIVATE_KEY_HERE
+
+# Evidence Signing Key (I generated this for you)
+EVIDENCE_SIGNING_KEY=a9f8e7d6c5b4a39281706f5e4d3c2b1a0f9e8d7c6b5a49382716051403121100
+------- END OF .env.local -------
+
+================================================================================
+STEP 2: EXPORT YOUR PRIVATE KEY FROM METAMASK
+================================================================================
+
+To use blockchain notarization, you need your wallet's PRIVATE KEY:
+
+1. Open MetaMask
+2. Click the three dots (...) next to your account
+3. Click "Account Details"
+4. Click "Show Private Key"
+5. Enter your MetaMask password
+6. Copy the private key (it starts with 0x)
+7. Paste it in .env.local as NOTARY_PRIVATE_KEY (remove the 0x prefix!)
+
+Example: If your private key is 0xabc123... 
+         Set NOTARY_PRIVATE_KEY=abc123...
+
+WARNING: NEVER share your private key with anyone!
+         Use a dedicated test wallet, not your main wallet with real funds.
+
+================================================================================
+STEP 3: INSTALL DEPENDENCIES
+================================================================================
+
+Open a terminal in the water-marker folder and run:
+
+    npm install
+
+Wait for it to complete.
+
+================================================================================
+STEP 4: SETUP CONVEX
+================================================================================
+
+In the same terminal, run:
+
+    npx convex dev
+
+This will:
+1. Ask you to log in to Convex (creates free account)
+2. Ask you to create a new project (name it "watermarker")
+3. Give you a URL like: https://something-something-123.convex.cloud
+
+Copy that URL and add it to your .env.local:
+    NEXT_PUBLIC_CONVEX_URL=https://your-convex-url.convex.cloud
+
+KEEP THIS TERMINAL RUNNING - Convex dev server needs to stay active.
+
+================================================================================
+STEP 4b: CONNECT CLERK TO CONVEX (IMPORTANT!)
+================================================================================
+
+1. Go to Clerk Dashboard: https://dashboard.clerk.com
+2. Select your application
+3. Go to Configure → JWT Templates
+4. Click "New template"
+5. Select "Convex" from the list
+6. Click "Create" (keep default settings)
+7. Copy the "Issuer" URL (looks like: https://your-app.clerk.accounts.dev)
+
+8. Go to Convex Dashboard: https://dashboard.convex.dev
+9. Select your project
+10. Go to Settings → Environment Variables
+11. Add: CLERK_ISSUER_URL = [paste the issuer URL from step 7]
+
+12. Restart npx convex dev
+
+================================================================================
+STEP 5: START THE APP
+================================================================================
+
+Open a NEW terminal (keep Convex running in the other one) and run:
+
+    npm run dev
+
+Then open your browser to: http://localhost:3000
+
+================================================================================
+SUMMARY OF WHAT YOU NEED TO DO:
+================================================================================
+
+[ ] 1. Add EVIDENCE_SIGNING_KEY to .env.local (copy from above)
+[ ] 2. Export private key from MetaMask and add to NOTARY_PRIVATE_KEY
+[ ] 3. Run: npm install
+[ ] 4. Run: npx convex dev (keep running, copy the URL to .env.local)
+[ ] 5. Run: npm run dev (in a new terminal)
+[ ] 6. Open http://localhost:3000
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Q: App doesn't start?
+A: Make sure npm install completed successfully first.
+
+Q: Convex errors?
+A: Make sure NEXT_PUBLIC_CONVEX_URL is set and npx convex dev is running.
+
+Q: Blockchain not working?
+A: It's optional! The app works without it. Just leave NOTARY_PRIVATE_KEY empty.
+
+Q: Sign-in not working?
+A: Check your Clerk keys are correct in .env.local
+
+================================================================================

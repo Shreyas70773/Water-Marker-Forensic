@@ -1,0 +1,70 @@
+================================================================================
+FIX LOG - Updated with Perceptual Hash Detection
+================================================================================
+
+MAJOR CHANGE: Switched from DCT watermark extraction to PERCEPTUAL HASH matching
+
+WHY THE OLD APPROACH DIDN'T WORK:
+- DCT-based watermarks are destroyed by JPEG compression
+- Any format conversion (PNG->JPEG, JPEG->WebP) destroys the embedded data
+- The watermark was too fragile for real-world use
+
+NEW APPROACH - PERCEPTUAL HASH MATCHING:
+- When you watermark an image, we compute 3 types of perceptual hashes:
+  1. pHash (Perceptual Hash) - based on DCT of thumbnail
+  2. aHash (Average Hash) - based on average brightness
+  3. dHash (Difference Hash) - based on brightness gradients
+
+- These hashes survive:
+  * JPEG compression (any quality)
+  * Format conversion (JPEG <-> PNG <-> WebP)
+  * Moderate resizing
+  * Minor color adjustments
+  * Screenshots
+
+- Detection compares perceptual hashes instead of extracting embedded data
+- If hashes match >= 85%, we identify it as your image
+
+HOW IT WORKS NOW:
+1. Upload image -> Watermark is applied (visual proof) + Hashes stored
+2. The original hash + your identity + timestamp can be blockchain notarized
+3. Detection uploads image -> Computes hashes -> Compares with database
+4. If match found -> Returns owner info and evidence
+
+LIMITATIONS OF NEW APPROACH:
+- Can't detect if image is heavily cropped (changes hash)
+- Very similar images might match (false positives possible)
+- Doesn't embed hidden data IN the image itself
+
+WHAT YOU GET:
+- Proof you registered this image first (with timestamp)
+- Blockchain notarization (immutable proof)
+- Detection works even after compression/conversion
+- Can identify copies of your images
+
+FILES CHANGED:
+- lib/watermark/perceptual-hash.ts (NEW - perceptual hash algorithms)
+- app/api/watermark/route.ts (compute and store hashes)
+- app/api/detect/route.ts (use hash comparison)
+- app/api/download/[id]/route.ts (fixed download issues)
+- convex/schema.ts (added hash fields)
+- convex/artworks.ts (accept hash fields)
+- app/detect/page.tsx (updated UI)
+
+================================================================================
+TO TEST:
+================================================================================
+
+1. Restart both servers:
+   - Terminal 1: npx convex dev
+   - Terminal 2: npm run dev
+
+2. Upload a NEW image (old images don't have hashes stored)
+
+3. Download the watermarked image
+
+4. Convert it to any format (JPEG, PNG, WebP) - it should still detect!
+
+5. Upload to Detect - should find the match
+
+================================================================================

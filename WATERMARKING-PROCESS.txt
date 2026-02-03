@@ -1,0 +1,315 @@
+================================================================================
+                    WATERMARKING PROCESS DOCUMENTATION
+                         Image & Video Watermarking
+================================================================================
+
+This document explains how the watermarking system embeds invisible watermarks
+into images and videos using DCT-based frequency-domain techniques.
+
+================================================================================
+                         ALGORITHM OVERVIEW
+================================================================================
+
+The system uses a combination of:
+
+1. DISCRETE COSINE TRANSFORM (DCT)
+   - 2D DCT applied to 8x8 pixel blocks (same as JPEG standard)
+   - Transforms spatial data into frequency domain
+   - Allows embedding in perceptually insignificant regions
+
+2. QUANTIZATION INDEX MODULATION (QIM)
+   - Embeds bits by manipulating coefficient parity
+   - Even quantized value = bit 0
+   - Odd quantized value = bit 1
+
+3. REED-SOLOMON ERROR CORRECTION (ECC)
+   - Forward error correction for robustness
+   - Can recover data even if some bits are corrupted
+   - Images: 8 ECC bytes (can correct up to 4 byte errors)
+   - Videos: 12 ECC bytes (higher redundancy)
+
+4. COEFFICIENT HOPPING
+   - Pseudorandom selection of DCT coefficients
+   - Uses deterministic seed from work ID + payload hash
+   - Provides security - attacker cannot locate watermark bits
+
+5. MID-FREQUENCY EMBEDDING
+   - Avoids DC coefficient [0,0] (too visible)
+   - Avoids high-frequency coefficients (lost in compression)
+   - Uses positions [2,2] to [5,5] range (13 coefficient positions)
+
+
+================================================================================
+                     IMAGE WATERMARKING PROCESS
+================================================================================
+
+STEP-BY-STEP EMBEDDING:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  INPUT: Original Image + Payload String + Work ID                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 1: PAYLOAD ENCODING                                                   │
+│  ─────────────────────────                                                  │
+│  • Encode payload string with Reed-Solomon ECC (8 bytes redundancy)         │
+│  • Convert encoded data to binary bit array                                 │
+│  • Calculate total bits needed for embedding                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 2: INITIALIZE COEFFICIENT HOPPER                                      │
+│  ────────────────────────────────────                                       │
+│  • Generate deterministic seed: SHA-256(workId + payloadHash)               │
+│  • Create list of mid-frequency coefficient positions                       │
+│  • Shuffle positions using Fisher-Yates algorithm with seed                 │
+│  • This ensures same positions are used for extraction                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 3: IMAGE PREPROCESSING                                                │
+│  ───────────────────────────                                                │
+│  • Load image and convert to raw RGB pixel data                             │
+│  • Extract luminance (Y) channel using ITU-R BT.601:                        │
+│      Y = 0.299*R + 0.587*G + 0.114*B                                        │
+│  • Check capacity: ensure enough 8x8 blocks for payload bits                │
+│  • Each 8x8 block can hold 1 bit                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 4: DCT DOMAIN EMBEDDING (for each 8x8 block)                          │
+│  ─────────────────────────────────────────────────                          │
+│                                                                             │
+│  4a. Extract 8x8 pixel block from luminance channel                         │
+│                                                                             │
+│  4b. Level shift: subtract 128 from each pixel (center around 0)            │
+│                                                                             │
+│  4c. Apply 2D DCT transform (separable: rows then columns)                  │
+│      • Converts spatial values to frequency coefficients                    │
+│      • Result is 8x8 matrix of frequency coefficients                       │
+│                                                                             │
+│  4d. Get target coefficient position from hopper                            │
+│      • Position is pseudorandom but deterministic                           │
+│                                                                             │
+│  4e. Embed bit using Quantization Index Modulation (QIM):                   │
+│      • Delta = strength × 255 (default strength: 0.15)                      │
+│      • Quantize: quantized = round(coefficient / delta)                     │
+│      • Current parity = |quantized| % 2                                     │
+│      • If parity != desired bit:                                            │
+│          - Adjust coefficient to flip parity                                │
+│      • Reconstruct coefficient from quantized value                         │
+│                                                                             │
+│  4f. Apply inverse 2D DCT (iDCT) to get modified pixel values               │
+│                                                                             │
+│  4g. Inverse level shift: add 128, clamp to [0, 255]                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 5: IMAGE RECONSTRUCTION                                               │
+│  ────────────────────────────                                               │
+│  • Calculate luminance difference for each pixel                            │
+│  • Apply difference proportionally to RGB channels                          │
+│  • This preserves color while embedding in luminance                        │
+│  • Convert back to image format (JPEG quality 100 or PNG)                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 6: QUALITY VALIDATION (optional)                                      │
+│  ─────────────────────────────────────                                      │
+│  • Calculate PSNR (Peak Signal-to-Noise Ratio)                              │
+│      - Target: ≥40 dB (higher = less visible distortion)                    │
+│  • Calculate SSIM (Structural Similarity Index)                             │
+│      - Target: ≥0.95 (1.0 = identical)                                      │
+│  • Warn if quality thresholds not met                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  OUTPUT: Watermarked Image                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+IMAGE WATERMARKING PARAMETERS:
+──────────────────────────────
+• Strength:        0.15 (embedding intensity, range 0.05-0.20)
+• Block Size:      8x8 pixels
+• ECC Bytes:       8 (can correct up to 4 byte errors)
+• Output Quality:  100 (JPEG) or PNG for lossless
+• Validate:        PSNR ≥40 dB, SSIM ≥0.95
+
+
+================================================================================
+                     VIDEO WATERMARKING PROCESS
+================================================================================
+
+Video watermarking extends image watermarking with temporal distribution to
+improve robustness against frame-level attacks.
+
+STEP-BY-STEP EMBEDDING:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  INPUT: Original Video + Payload String + Work ID                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 1: FRAME EXTRACTION                                                   │
+│  ────────────────────────                                                   │
+│  • Use FFmpeg to extract ALL frames at original FPS                         │
+│  • Save frames as PNG (lossless) for processing                             │
+│  • Preserve frame order and timing information                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 2: PAYLOAD PREPARATION WITH TEMPORAL SHARDING                         │
+│  ──────────────────────────────────────────────────                         │
+│  • Encode payload with Reed-Solomon ECC (12 bytes redundancy)               │
+│  • Split payload into temporal shards (default: 3 shards)                   │
+│      - Shard 0: First 1/3 of payload                                        │
+│      - Shard 1: Middle 1/3 of payload                                       │
+│      - Shard 2: Last 1/3 of payload                                         │
+│  • Each shard converted to hex string for embedding                         │
+│  • Create separate coefficient hopper for each shard                        │
+│      - Shard 0 seed: workId-shard0                                          │
+│      - Shard 1 seed: workId-shard1                                          │
+│      - Shard 2 seed: workId-shard2                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 3: TEMPORAL DISTRIBUTION                                              │
+│  ────────────────────────────                                               │
+│  • Divide video frames into shard ranges:                                   │
+│      Example for 100-frame video with 3 shards:                             │
+│      - Frames 0-33:  Embed Shard 0                                          │
+│      - Frames 34-66: Embed Shard 1                                          │
+│      - Frames 67-99: Embed Shard 2                                          │
+│  • Each frame in a range gets the same shard embedded                       │
+│  • Redundancy: same shard in multiple frames                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 4: FRAME PROCESSING (for each frame)                                  │
+│  ─────────────────────────────────────────                                  │
+│                                                                             │
+│  4a. Check frame sampling rate (default: process every frame)               │
+│                                                                             │
+│  4b. Optional texture filtering:                                            │
+│      • Calculate frame variance (texture score)                             │
+│      • Skip frames with variance < 0.3 (flat/uniform regions)               │
+│      • Flat regions show watermark artifacts more visibly                   │
+│                                                                             │
+│  4c. Determine which shard this frame should contain                        │
+│                                                                             │
+│  4d. Embed shard using image watermarking engine:                           │
+│      • Use lower strength (0.03) for video                                  │
+│      • Use PNG output format for lossless frame processing                  │
+│      • Apply same DCT/QIM process as image watermarking                     │
+│                                                                             │
+│  4e. Save watermarked frame as PNG                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 5: VIDEO RECONSTRUCTION                                               │
+│  ────────────────────────────                                               │
+│  • Use FFmpeg to reassemble frames into video                               │
+│  • Settings:                                                                │
+│      - Preserve original frame rate                                         │
+│      - Use libx264 codec                                                    │
+│      - CRF 17 (very high quality, minimal compression loss)                 │
+│      - Copy audio from original if present                                  │
+│  • Clean up temporary frame files                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  OUTPUT: Watermarked Video                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+VIDEO WATERMARKING PARAMETERS:
+──────────────────────────────
+• Strength:           0.03 (lower than images to reduce visible artifacts)
+• Block Size:         8x8 pixels
+• ECC Bytes:          12 (higher redundancy for video)
+• Temporal Shards:    3 (adjusts based on video length)
+• Frame Sampling:     1 (process every Nth frame, default: every frame)
+• Texture Threshold:  0.3 (skip flat regions if enabled)
+• Output Codec:       H.264 (libx264)
+• Output Quality:     CRF 17 (very high quality)
+
+
+================================================================================
+                     WHY TEMPORAL SHARDING?
+================================================================================
+
+Temporal sharding provides several benefits:
+
+1. REDUNDANCY
+   - Same payload bits appear in multiple frames
+   - If some frames are corrupted, payload can still be recovered
+
+2. ATTACK RESISTANCE
+   - Survives frame dropping attacks
+   - Survives temporal subsampling
+   - More robust against video re-encoding
+
+3. REDUCED VISIBILITY
+   - Lower embedding strength per frame
+   - Cumulative redundancy compensates for weaker individual marks
+
+4. STATISTICAL SECURITY
+   - Attacker cannot determine which frames contain which bits
+   - Different coefficient sequences per shard
+
+
+================================================================================
+                     DCT COEFFICIENT POSITIONS
+================================================================================
+
+8x8 DCT coefficient matrix (showing frequency positions):
+
+    [0,0] [0,1] [0,2] [0,3] [0,4] [0,5] [0,6] [0,7]
+    [1,0] [1,1] [1,2] [1,3] [1,4] [1,5] [1,6] [1,7]
+    [2,0] [2,1] [2,2] [2,3] [2,4] [2,5] [2,6] [2,7]
+    [3,0] [3,1] [3,2] [3,3] [3,4] [3,5] [3,6] [3,7]
+    [4,0] [4,1] [4,2] [4,3] [4,4] [4,5] [4,6] [4,7]
+    [5,0] [5,1] [5,2] [5,3] [5,4] [5,5] [5,6] [5,7]
+    [6,0] [6,1] [6,2] [6,3] [6,4] [6,5] [6,6] [6,7]
+    [7,0] [7,1] [7,2] [7,3] [7,4] [7,5] [7,6] [7,7]
+
+• [0,0] = DC coefficient (average brightness) - NOT USED
+• [0,1] to [1,1] = Low frequency - NOT USED (too visible)
+• [2,2] to [5,5] = Mid frequency - USED FOR EMBEDDING
+• [6,6] to [7,7] = High frequency - NOT USED (lost in compression)
+
+Mid-frequency coefficients balance:
+- Invisibility (less perceptually significant than low-freq)
+- Survivability (more robust than high-freq under compression)
+
+
+================================================================================
+                     KEY SOURCE FILES
+================================================================================
+
+• lib/watermark/image-watermark.ts  - Image embedding engine
+• lib/watermark/video-watermark.ts  - Video embedding engine
+• lib/watermark/dct-utils.ts        - DCT/iDCT transforms
+• lib/watermark/coefficient-hopping.ts - Pseudorandom coefficient selection
+• lib/watermark/ecc.ts              - Reed-Solomon error correction
+• lib/watermark/quality-validator.ts - PSNR/SSIM quality metrics
+• app/api/watermark-video/route.ts  - Video processing API
+
+
+================================================================================
+                         END OF DOCUMENT
+================================================================================

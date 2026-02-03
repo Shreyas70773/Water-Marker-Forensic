@@ -1,0 +1,501 @@
+================================================================================
+                      DETECTION PROCESS DOCUMENTATION
+                        Image & Video Watermark Detection
+================================================================================
+
+This document explains how the system detects and extracts watermarks from
+images and videos, including both perceptual hash matching and direct extraction.
+
+================================================================================
+                         DETECTION OVERVIEW
+================================================================================
+
+The system uses TWO complementary detection approaches:
+
+1. PERCEPTUAL HASH MATCHING (Primary)
+   - Fast database lookup using image fingerprints
+   - Robust to common transformations
+   - Returns matched artwork from database
+
+2. DIRECT WATERMARK EXTRACTION (Secondary)
+   - Extracts embedded payload from DCT coefficients
+   - Requires knowledge of work ID for coefficient hopping
+   - Returns actual embedded data
+
+
+================================================================================
+                     IMAGE DETECTION PROCESS
+================================================================================
+
+METHOD 1: PERCEPTUAL HASH MATCHING (Primary Detection)
+──────────────────────────────────────────────────────
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  INPUT: Suspect Image                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 1: COMPUTE PERCEPTUAL HASHES                                          │
+│  ─────────────────────────────────                                          │
+│                                                                             │
+│  Three hash types are computed:                                             │
+│                                                                             │
+│  1a. pHash (Perceptual Hash):                                               │
+│      • Resize image to 32x32 grayscale                                      │
+│      • Apply DCT transform                                                  │
+│      • Keep top-left 8x8 coefficients (low frequency)                       │
+│      • Calculate median of coefficients                                     │
+│      • Each bit: 1 if coeff > median, 0 otherwise                           │
+│      • Result: 64-bit hash                                                  │
+│                                                                             │
+│  1b. aHash (Average Hash):                                                  │
+│      • Resize image to 8x8 grayscale                                        │
+│      • Calculate average pixel value                                        │
+│      • Each bit: 1 if pixel > average, 0 otherwise                          │
+│      • Result: 64-bit hash                                                  │
+│                                                                             │
+│  1c. dHash (Difference Hash):                                               │
+│      • Resize image to 9x8 grayscale                                        │
+│      • Compare adjacent horizontal pixels                                   │
+│      • Each bit: 1 if left > right, 0 otherwise                             │
+│      • Result: 64-bit hash                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 2: DATABASE SEARCH                                                    │
+│  ───────────────────────                                                    │
+│  • Query database for recent artworks (limit: 100)                          │
+│  • Each artwork has pre-computed hashes stored                              │
+│  • Compare suspect image hashes against all stored hashes                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 3: SIMILARITY CALCULATION                                             │
+│  ──────────────────────────────                                             │
+│                                                                             │
+│  For each hash comparison:                                                  │
+│  • Calculate Hamming distance (count of different bits)                     │
+│  • Convert to similarity: 1 - (hammingDistance / hashLength)                │
+│                                                                             │
+│  Combined weighted similarity:                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │  similarity = (pHash × 0.3) + (aHash × 0.2) + (dHash × 0.5)         │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  Weight rationale:                                                          │
+│  • dHash (0.5): Best for detecting structural modifications                 │
+│  • pHash (0.3): Good for frequency-domain changes                           │
+│  • aHash (0.2): Simple but effective baseline                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 4: MATCH DETERMINATION                                                │
+│  ───────────────────────────                                                │
+│                                                                             │
+│  Similarity Threshold: 0.85 (85%)                                           │
+│                                                                             │
+│  Confidence Levels:                                                         │
+│  ┌──────────────────────────────────────────────────────────────────────┐   │
+│  │  ≥ 0.95  →  EXCELLENT  (very high confidence match)                  │   │
+│  │  ≥ 0.90  →  GOOD       (high confidence match)                       │   │
+│  │  ≥ 0.85  →  FAIR       (probable match, investigate further)         │   │
+│  │  ≥ 0.75  →  MARGINAL   (possible match, low confidence)              │   │
+│  │  < 0.75  →  NONE       (no match detected)                           │   │
+│  └──────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 5: FORENSIC RESPONSE                                                  │
+│  ─────────────────────────                                                  │
+│  If match found:                                                            │
+│  • Return matched artwork details (title, artist, date)                     │
+│  • Include blockchain verification URL                                      │
+│  • Include evidence signature data                                          │
+│  • Return similarity score and confidence level                             │
+│                                                                             │
+│  If no match:                                                               │
+│  • Return "no watermark detected" result                                    │
+│  • Include analysis metadata                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  OUTPUT: Detection Result with Forensic Evidence                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+METHOD 2: DIRECT WATERMARK EXTRACTION
+─────────────────────────────────────
+
+Used when work ID is known and direct payload verification is needed.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  INPUT: Suspect Image + Known Work ID                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 1: INITIALIZE EXTRACTION ENGINE                                       │
+│  ────────────────────────────────────                                       │
+│  • Initialize ECC engine with same parameters (8 ECC bytes)                 │
+│  • Initialize coefficient hopper with same seed (workId + payloadHash)      │
+│  • This ensures we look at same DCT positions used in embedding             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 2: IMAGE PREPROCESSING                                                │
+│  ───────────────────────────                                                │
+│  • Load image and convert to raw RGB data                                   │
+│  • Extract luminance channel (Y)                                            │
+│  • Calculate number of available 8x8 blocks                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 3: EXTRACT BITS FROM DCT (for each 8x8 block)                         │
+│  ──────────────────────────────────────────────────                         │
+│                                                                             │
+│  3a. Extract 8x8 block from luminance                                       │
+│                                                                             │
+│  3b. Level shift: subtract 128                                              │
+│                                                                             │
+│  3c. Apply 2D DCT transform                                                 │
+│                                                                             │
+│  3d. Get coefficient position from hopper (same sequence as embedding)      │
+│                                                                             │
+│  3e. Extract bit using QIM:                                                 │
+│      • Delta = strength × 255                                               │
+│      • Quantize: quantized = round(coefficient / delta)                     │
+│      • Extract bit: bit = |quantized| % 2                                   │
+│      • Even = 0, Odd = 1                                                    │
+│                                                                             │
+│  3f. Collect all extracted bits                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 4: ERROR CORRECTION DECODE                                            │
+│  ────────────────────────────────                                           │
+│  • Convert bits to bytes                                                    │
+│  • Apply Reed-Solomon decoding:                                             │
+│      - Calculate syndromes                                                  │
+│      - Find error locator polynomial (Berlekamp-Massey)                     │
+│      - Find error positions (Chien search)                                  │
+│      - Calculate error magnitudes (Forney algorithm)                        │
+│      - Correct errors (up to eccBytes/2 = 4 errors)                         │
+│  • Remove ECC bytes to get original payload                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 5: CALCULATE CONFIDENCE                                               │
+│  ────────────────────────────                                               │
+│  • 1.0 if no errors detected                                                │
+│  • Decreases with number of errors corrected                                │
+│  • 0.0 if too many errors (uncorrectable)                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  OUTPUT: Extracted Payload + Confidence Score                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                     VIDEO DETECTION PROCESS
+================================================================================
+
+METHOD 1: PERCEPTUAL HASH MATCHING (Multi-Frame)
+────────────────────────────────────────────────
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  INPUT: Suspect Video                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 1: FRAME SAMPLING                                                     │
+│  ──────────────────────                                                     │
+│  • Calculate video duration and frame count                                 │
+│  • Extract 5 sample frames evenly distributed across video                  │
+│  • Use FFmpeg to extract frames at calculated timestamps:                   │
+│      - Frame 1: 10% into video                                              │
+│      - Frame 2: 30% into video                                              │
+│      - Frame 3: 50% into video (middle)                                     │
+│      - Frame 4: 70% into video                                              │
+│      - Frame 5: 90% into video                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 2: COMPUTE HASHES FOR EACH FRAME                                      │
+│  ─────────────────────────────────────                                      │
+│  • For each sample frame:                                                   │
+│      - Compute pHash (64-bit)                                               │
+│      - Compute aHash (64-bit)                                               │
+│      - Compute dHash (64-bit)                                               │
+│  • Store all frame hashes for comparison                                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 3: MULTI-FRAME DATABASE MATCHING                                      │
+│  ─────────────────────────────────────                                      │
+│  • Query database for recent artworks                                       │
+│  • For EACH sample frame:                                                   │
+│      - Compare against all stored artwork hashes                            │
+│      - Calculate weighted similarity                                        │
+│      - Track best match for this frame                                      │
+│  • Voting mechanism:                                                        │
+│      - Track how many frames match each artwork                             │
+│      - More frame matches = higher confidence                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 4: AGGREGATE RESULTS                                                  │
+│  ─────────────────────────                                                  │
+│  • Find artwork with highest overall match score                            │
+│  • Consider both:                                                           │
+│      - Best single-frame similarity                                         │
+│      - Number of frames matching same artwork                               │
+│  • Apply similarity threshold: 0.85                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 5: FORENSIC RESPONSE                                                  │
+│  ─────────────────────────                                                  │
+│  • Return matched artwork details                                           │
+│  • Include which frame(s) matched                                           │
+│  • Include frame analysis details                                           │
+│  • Include confidence level                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  OUTPUT: Detection Result with Frame Analysis                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+METHOD 2: DIRECT VIDEO WATERMARK EXTRACTION
+───────────────────────────────────────────
+
+Used for verification when work ID is known.
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  INPUT: Suspect Video + Known Work ID                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 1: FRAME EXTRACTION                                                   │
+│  ────────────────────────                                                   │
+│  • Extract all frames from video using FFmpeg                               │
+│  • Save as PNG for lossless processing                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 2: FRAME SAMPLING FOR EXTRACTION                                      │
+│  ─────────────────────────────────────                                      │
+│  • Sample every 5th frame for efficiency                                    │
+│  • Group frames by temporal shard:                                          │
+│      - Shard 0: Frames from first 1/3 of video                              │
+│      - Shard 1: Frames from middle 1/3 of video                             │
+│      - Shard 2: Frames from last 1/3 of video                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 3: EXTRACT PER SHARD                                                  │
+│  ─────────────────────────                                                  │
+│                                                                             │
+│  For each temporal shard:                                                   │
+│                                                                             │
+│  3a. Initialize coefficient hopper with shard-specific seed                 │
+│      • Shard 0: workId-shard0                                               │
+│      • Shard 1: workId-shard1                                               │
+│      • Shard 2: workId-shard2                                               │
+│                                                                             │
+│  3b. Extract watermark from multiple frames in shard range                  │
+│                                                                             │
+│  3c. Majority voting:                                                       │
+│      • Each frame gives a candidate payload for this shard                  │
+│      • Vote on most common value for each bit position                      │
+│      • More agreement = higher confidence                                   │
+│                                                                             │
+│  3d. Determine shard payload based on majority                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 4: RECONSTRUCT FULL PAYLOAD                                           │
+│  ────────────────────────────────                                           │
+│  • Combine shards in order: Shard0 + Shard1 + Shard2                        │
+│  • Apply Reed-Solomon decoding (12 ECC bytes)                               │
+│  • Correct errors if possible                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  STEP 5: CALCULATE CONFIDENCE                                               │
+│  ────────────────────────────                                               │
+│  • Based on shard recovery rate                                             │
+│  • Based on majority voting agreement                                       │
+│  • Based on ECC error count                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  OUTPUT: Extracted Payload + Confidence + Shard Details                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                     PERCEPTUAL HASH ALGORITHMS
+================================================================================
+
+pHash (Perceptual Hash)
+───────────────────────
+Purpose: Detect structural similarity using frequency analysis
+
+Algorithm:
+1. Resize to 32x32 grayscale
+2. Apply 2D DCT (same transform used in JPEG)
+3. Keep only top-left 8x8 coefficients (64 values)
+   - These represent low-frequency components
+   - Capture overall structure, ignore fine details
+4. Calculate median of these 64 values
+5. Create 64-bit hash: 1 if value > median, 0 otherwise
+
+Strengths:
+• Resistant to scaling, rotation, minor cropping
+• Captures perceptual essence of image
+• Good for detecting edited versions
+
+aHash (Average Hash)
+────────────────────
+Purpose: Simple, fast similarity detection
+
+Algorithm:
+1. Resize to 8x8 grayscale (64 pixels)
+2. Calculate average pixel value
+3. Create 64-bit hash: 1 if pixel > average, 0 otherwise
+
+Strengths:
+• Very fast to compute
+• Good baseline comparison
+• Resistant to brightness changes
+
+dHash (Difference Hash)
+───────────────────────
+Purpose: Detect structural changes via gradient analysis
+
+Algorithm:
+1. Resize to 9x8 grayscale (72 pixels, extra column)
+2. Compare each pixel with its right neighbor
+3. Create 64-bit hash: 1 if left > right, 0 otherwise
+
+Strengths:
+• Excellent for detecting modifications
+• Captures directional gradients
+• Resistant to brightness/contrast changes
+
+
+================================================================================
+                     SIMILARITY CALCULATION
+================================================================================
+
+Hamming Distance
+────────────────
+• Count of bit positions where two hashes differ
+• Example: 1010 vs 1100 = 2 bits different
+
+Similarity Score
+────────────────
+• similarity = 1 - (hammingDistance / totalBits)
+• 64-bit hash with 6 different bits: 1 - (6/64) = 0.906 (90.6%)
+
+Combined Weighted Similarity
+────────────────────────────
+┌────────────────────────────────────────────────────────────────────────────┐
+│  combined = (pHash_sim × 0.3) + (aHash_sim × 0.2) + (dHash_sim × 0.5)     │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Weight Rationale:
+• dHash (0.5): Highest weight - best at detecting structural modifications
+• pHash (0.3): Medium weight - good for frequency-domain analysis
+• aHash (0.2): Lowest weight - simple baseline, less discriminative
+
+
+================================================================================
+                     DETECTION THRESHOLDS
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  SIMILARITY_THRESHOLD = 0.85  (minimum for positive match)                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Confidence Levels:
+┌──────────────┬─────────────────────────────────────────────────────────────┐
+│  Score       │  Confidence Level & Interpretation                          │
+├──────────────┼─────────────────────────────────────────────────────────────┤
+│  ≥ 0.95      │  EXCELLENT - Very high confidence, minimal modifications    │
+│  ≥ 0.90      │  GOOD - High confidence, possibly minor edits               │
+│  ≥ 0.85      │  FAIR - Probable match, may have significant edits          │
+│  ≥ 0.75      │  MARGINAL - Possible match, investigate further             │
+│  < 0.75      │  NONE - No match, likely different source                   │
+└──────────────┴─────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                     ROBUSTNESS CHARACTERISTICS
+================================================================================
+
+The detection system is designed to survive:
+
+Image Attacks:
+• JPEG compression (various quality levels)
+• Resizing/scaling (up and down)
+• Format conversion (PNG ↔ JPEG ↔ WebP)
+• Minor cropping (up to ~10%)
+• Brightness/contrast adjustments
+• Color space conversions
+
+Video Attacks:
+• Re-encoding (different codecs)
+• Frame rate changes
+• Resolution changes
+• Temporal subsampling (frame dropping)
+• Format conversion
+
+Limitations:
+• Heavy geometric transformations (large rotations)
+• Significant cropping (>20%)
+• Overlays covering large portions
+• Complete color inversion
+• Severe compression (quality < 30)
+
+
+================================================================================
+                     KEY SOURCE FILES
+================================================================================
+
+• lib/watermark/perceptual-hash.ts   - Hash computation and comparison
+• lib/watermark/image-watermark.ts   - Direct extraction from images
+• lib/watermark/video-watermark.ts   - Direct extraction from videos
+• lib/watermark/ecc.ts               - Reed-Solomon error correction
+• app/api/detect/route.ts            - Image detection API
+• app/api/detect-video/route.ts      - Video detection API
+
+
+================================================================================
+                         END OF DOCUMENT
+================================================================================
