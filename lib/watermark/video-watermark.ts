@@ -434,12 +434,12 @@ export class VideoWatermarkEngine {
     let maxCount = 0;
     let mostCommon = items[0];
 
-    for (const [item, count] of counts) {
+    counts.forEach((count, item) => {
       if (count > maxCount) {
         maxCount = count;
         mostCommon = item;
       }
-    }
+    });
 
     return mostCommon;
   }

@@ -39,7 +39,7 @@ const DEFAULT_CONFIG: RobustnessTestConfig = {
  */
 export interface TransformationTestResult {
   transformation: string;
-  parameters: Record<string, number | string>;
+  parameters: Record<string, number | string | boolean>;
   detected: boolean;
   confidence: number;
   errorsFound: number;

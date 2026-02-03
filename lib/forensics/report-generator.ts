@@ -10,7 +10,6 @@
  */
 
 import PDFDocument from "pdfkit";
-import { Readable } from "stream";
 
 /**
  * Forensic report data structure
@@ -90,7 +89,7 @@ export class ForensicReportGenerator {
   /**
    * Generate report as a readable stream
    */
-  generateReportStream(data: ForensicReportData): Readable {
+  generateReportStream(data: ForensicReportData): PDFKit.PDFDocument {
     const doc = new PDFDocument({
       size: "LETTER",
       margin: 50,

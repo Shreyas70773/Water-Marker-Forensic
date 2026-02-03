@@ -98,17 +98,19 @@ export default function UploadPage() {
     }
   }, []);
 
-  const acceptedFileTypes = mediaType === "IMAGE" 
-    ? {
-        "image/jpeg": [".jpg", ".jpeg"],
-        "image/png": [".png"],
-        "image/webp": [".webp"],
-      }
-    : {
-        "video/mp4": [".mp4"],
-        "video/webm": [".webm"],
-        "video/quicktime": [".mov"],
-      };
+  const imageTypes = {
+    "image/jpeg": [".jpg", ".jpeg"],
+    "image/png": [".png"],
+    "image/webp": [".webp"],
+  };
+  
+  const videoTypes = {
+    "video/mp4": [".mp4"],
+    "video/webm": [".webm"],
+    "video/quicktime": [".mov"],
+  };
+
+  const acceptedFileTypes = mediaType === "IMAGE" ? imageTypes : videoTypes;
 
   const maxFileSize = mediaType === "IMAGE" 
     ? 10 * 1024 * 1024   // 10MB for images

@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     const uploadResponse = await fetch(uploadUrl, {
       method: "POST",
       headers: { "Content-Type": file.type },
-      body: buffer,
+      body: new Uint8Array(buffer),
     });
 
     if (!uploadResponse.ok) {
@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
     const watermarkedUploadResponse = await fetch(watermarkedUploadUrl, {
       method: "POST",
       headers: { "Content-Type": "image/jpeg" },
-      body: watermarkedBuffer,
+      body: new Uint8Array(watermarkedBuffer),
     });
 
     if (!watermarkedUploadResponse.ok) {
