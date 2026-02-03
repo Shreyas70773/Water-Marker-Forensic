@@ -23,9 +23,10 @@ import {
 import { computeCombinedHash } from "@/lib/watermark/perceptual-hash";
 import { Id } from "@/convex/_generated/dataModel";
 
-// Use dynamic imports for FFmpeg to handle potential issues
-let ffmpegPath: string;
-let ffprobePath: string;
+// Check if FFmpeg is available (it's NOT on Netlify serverless)
+let ffmpegAvailable = false;
+let ffmpegPath: string = "ffmpeg";
+let ffprobePath: string = "ffprobe";
 
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -34,10 +35,15 @@ try {
   const ffprobeInstaller = require("@ffprobe-installer/ffprobe");
   ffmpegPath = ffmpegInstaller.path;
   ffprobePath = ffprobeInstaller.path;
+  
+  // Check if the binary actually exists
+  const fsSync = require("fs");
+  if (fsSync.existsSync(ffmpegPath) && fsSync.existsSync(ffprobePath)) {
+    ffmpegAvailable = true;
+  }
 } catch (e) {
-  console.warn("FFmpeg/FFprobe installers not found, using system binaries:", e);
-  ffmpegPath = "ffmpeg";
-  ffprobePath = "ffprobe";
+  console.warn("FFmpeg/FFprobe not available:", e);
+  ffmpegAvailable = false;
 }
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
@@ -154,6 +160,17 @@ async function reconstructVideo(
 }
 
 export async function POST(req: NextRequest) {
+  // Check if FFmpeg is available - it's NOT on Netlify serverless
+  if (!ffmpegAvailable) {
+    return NextResponse.json(
+      { 
+        error: "Video processing is not available on this deployment. Please use images, or deploy the video-backend service separately for video processing.",
+        code: "FFMPEG_NOT_AVAILABLE"
+      }, 
+      { status: 503 }
+    );
+  }
+
   let tempDir: string | null = null;
   
   try {
