@@ -32,7 +32,9 @@ export default defineSchema({
     aspectRatio: v.string(), // "16:9", "4:3", "1:1", "custom"
 
     // Original file
-    originalFileId: v.id("_storage"),
+    // Note: originalFileId is optional to support storage cleanup where
+    // files are deleted but the forensic evidence record is preserved.
+    originalFileId: v.optional(v.id("_storage")),
     originalFileName: v.string(),
     originalFileSize: v.number(),
 
