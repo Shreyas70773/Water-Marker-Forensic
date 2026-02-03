@@ -4,6 +4,11 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import sharp from "sharp";
 
+// Force Node.js runtime for this route (required for sharp, fs operations)
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60; // 60 seconds timeout
+
 import { ImageWatermarkEngine } from "@/lib/watermark/image-watermark";
 import { HashEngine } from "@/lib/crypto/hasher";
 import { EvidenceSigner } from "@/lib/crypto/signer";

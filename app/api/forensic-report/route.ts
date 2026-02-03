@@ -9,6 +9,10 @@ import {
   ForensicReportData,
 } from "@/lib/forensics/report-generator";
 
+// Force Node.js runtime for this route (required for PDFKit)
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export async function GET(req: NextRequest) {

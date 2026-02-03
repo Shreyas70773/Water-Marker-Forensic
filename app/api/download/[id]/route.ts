@@ -3,10 +3,12 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
-
+// Force Node.js runtime for this route
+export const runtime = "nodejs";
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
+
+const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
 export async function GET(
   req: NextRequest,

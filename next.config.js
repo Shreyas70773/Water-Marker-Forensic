@@ -1,14 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    serverComponentsExternalPackages: [
-      'sharp',
-      'pdfkit',
-      '@ffmpeg-installer/ffmpeg',
-      '@ffprobe-installer/ffprobe',
-      'fluent-ffmpeg',
-    ],
-  },
+  // External packages for server-side processing
+  serverExternalPackages: [
+    'sharp',
+    'pdfkit',
+    '@ffmpeg-installer/ffmpeg',
+    '@ffprobe-installer/ffprobe',
+    'fluent-ffmpeg',
+  ],
   images: {
     remotePatterns: [
       {
@@ -29,6 +28,8 @@ const nextConfig = {
     }
     return config;
   },
+  // Output configuration for Netlify
+  output: 'standalone',
 };
 
 module.exports = nextConfig;

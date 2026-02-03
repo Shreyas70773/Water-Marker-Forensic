@@ -9,11 +9,13 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# API routes configuration
+# API routes configuration - handled by Next.js plugin
 [functions]
   # Increase timeout for image processing (max 26s on free tier)
   # Videos will need the external backend for longer processing
   node_bundler = "esbuild"
+  # Include external modules needed for image/video processing
+  included_files = ["node_modules/sharp/**", "node_modules/@img/**"]
 
 # Headers for security and caching
 [[headers]]
@@ -28,8 +30,6 @@
   [headers.values]
     Cache-Control = "no-store, no-cache, must-revalidate"
 
-# Redirects
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/___netlify-handler"
-  status = 200
+# NOTE: Do NOT add redirects for /api/* routes!
+# The @netlify/plugin-nextjs handles Next.js API routes automatically.
+# Adding manual redirects will break API routing.

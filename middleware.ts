@@ -7,6 +7,7 @@ const isPublicRoute = createRouteMatcher([
   "/auth/sign-up(.*)",
   "/detect",
   "/api/detect(.*)",
+  "/api/detect-video(.*)",
 ]);
 
 export default clerkMiddleware(async (auth, req) => {

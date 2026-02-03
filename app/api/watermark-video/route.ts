@@ -6,6 +6,11 @@ import { promises as fs } from "fs";
 import path from "path";
 import os from "os";
 
+// Force Node.js runtime for this route (required for FFmpeg, fs operations)
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 300; // 5 minutes timeout for video processing
+
 import { VideoWatermarkEngine } from "@/lib/watermark/video-watermark";
 import { HashEngine } from "@/lib/crypto/hasher";
 import { EvidenceSigner } from "@/lib/crypto/signer";

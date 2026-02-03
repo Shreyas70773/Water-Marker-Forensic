@@ -3,6 +3,11 @@ import { ConvexHttpClient } from "convex/browser";
 import { api } from "@/convex/_generated/api";
 import { v4 as uuidv4 } from "uuid";
 
+// Force Node.js runtime for this route
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 60; // 60 seconds timeout
+
 import { HashEngine } from "@/lib/crypto/hasher";
 import { 
   computeCombinedHash, 
